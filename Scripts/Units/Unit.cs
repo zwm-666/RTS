@@ -70,6 +70,12 @@ namespace RTS.Units
         [Header("选择指示器（可选）")]
         [SerializeField] private GameObject _selectionIndicator;
         
+        [Header("远程攻击（可选）")]
+        [Tooltip("投射物预制体，为空则为近战单位")]
+        [SerializeField] private GameObject _projectilePrefab;
+        [Tooltip("投射物发射点")]
+        [SerializeField] private Transform _firePoint;
+        
         #endregion
 
         #region 领域数据（由 EntitySpawner 或 Repository 注入）
@@ -142,6 +148,11 @@ namespace RTS.Units
         
         // 兼容旧代码的属性名
         public string DisplayName => _domainData?.DisplayName ?? "Unknown";
+        
+        /// <summary>
+        /// 是否为远程单位
+        /// </summary>
+        public bool IsRanged => _projectilePrefab != null;
         
         #endregion
 
@@ -436,10 +447,20 @@ namespace RTS.Units
         
         private int CalculateReceivedDamage(int rawDamage, AttackType attackType)
         {
-            float multiplier = UnitData.GetDamageMultiplier(attackType, ArmorType);
+            // 使用 DamageCalculator 获取克制倍率
+            float multiplier = RTS.Domain.DamageCalculator.GetMultiplier(attackType, ArmorType);
             int modifiedDamage = Mathf.RoundToInt(rawDamage * multiplier);
             int finalDamage = Mathf.Max(1, modifiedDamage - Armor);
             return finalDamage;
+        }
+        
+        /// <summary>
+        /// 计算实际攻击速度（虚方法，子类可重写）
+        /// </summary>
+        /// <returns>攻击间隔（秒）</returns>
+        public virtual float CalculateAttackSpeed()
+        {
+            return _domainData?.AttackSpeed ?? 1f;
         }
         
         public bool Attack(Unit target)
@@ -462,15 +483,68 @@ namespace RTS.Units
                 return false;
             }
             
+            // 面向目标
+            Vector3 lookDir = (target.transform.position - transform.position).normalized;
+            lookDir.y = 0;
+            if (lookDir != Vector3.zero)
+            {
+                transform.rotation = Quaternion.LookRotation(lookDir);
+            }
+            
             _currentState = UnitState.Attacking;
-            _attackCooldown = _domainData.AttackSpeed;
+            _attackCooldown = CalculateAttackSpeed(); // 使用动态攻速
             
-            int damage = _domainData.CalculateDamage(target.ArmorType, target.Armor);
-            target.TakeDamage(damage, _domainData.AttackType);
+            // 判断近战或远程
+            if (_projectilePrefab != null)
+            {
+                // 远程攻击：发射投射物
+                FireProjectile(target);
+                Debug.Log($"[Unit] {_domainData.DisplayName} 向 {target.DisplayName} 发射投射物");
+            }
+            else
+            {
+                // 近战攻击：直接造成伤害
+                int damage = _domainData.CalculateDamage(target.ArmorType, target.Armor);
+                target.TakeDamage(damage, _domainData.AttackType);
+                Debug.Log($"[Unit] {_domainData.DisplayName} 近战攻击 {target.DisplayName}，造成 {damage} 点伤害");
+            }
             
-            Debug.Log($"[Unit] {_domainData.DisplayName} 攻击 {target.DisplayName}，造成 {damage} 点伤害");
             return true;
         }
+        
+        /// <summary>
+        /// 发射投射物
+        /// </summary>
+        private void FireProjectile(Unit target)
+        {
+            if (_projectilePrefab == null || target == null) return;
+            
+            // 确定发射位置
+            Vector3 spawnPos = _firePoint != null ? _firePoint.position : transform.position + Vector3.up * 1f;
+            Quaternion spawnRot = Quaternion.LookRotation((target.transform.position - spawnPos).normalized);
+            
+            // 实例化投射物
+            GameObject projObj = Instantiate(_projectilePrefab, spawnPos, spawnRot);
+            
+            // 初始化投射物
+            Projectile projectile = projObj.GetComponent<Projectile>();
+            if (projectile != null)
+            {
+                // 传递伤害值和攻击类型
+                int damage = _domainData.AttackDamage;
+                projectile.Initialize(this, target, damage, _domainData.AttackType);
+            }
+            else
+            {
+                Debug.LogError($"[Unit] 投射物预制体缺少 Projectile 组件！");
+                Destroy(projObj);
+            }
+        }
+        
+        /// <summary>
+        /// 是否为远程单位
+        /// </summary>
+        public bool IsRanged => _projectilePrefab != null;
         
         public void SetTarget(Unit target)
         {

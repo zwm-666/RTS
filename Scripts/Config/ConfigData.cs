@@ -17,6 +17,68 @@ namespace RTS.Config
         public string lastUpdate;
         public List<UnitDto> units;
         public List<BuildingDto> buildings;
+        
+        /// <summary>
+        /// 伤害克制表: damageMultipliers[AttackType][ArmorType] = 倍率
+        /// 由于 JsonUtility 不支持嵌套字典，需要手动解析
+        /// </summary>
+        public DamageMultipliersDto damageMultipliers;
+    }
+    
+    /// <summary>
+    /// 伤害克制表DTO（需要手动解析嵌套结构）
+    /// </summary>
+    [Serializable]
+    public class DamageMultipliersDto
+    {
+        public ArmorMultiplierDto Normal;
+        public ArmorMultiplierDto Piercing;
+        public ArmorMultiplierDto Magic;
+        public ArmorMultiplierDto Siege;
+        public ArmorMultiplierDto Hero;
+        
+        /// <summary>
+        /// 转换为字典格式
+        /// </summary>
+        public Dictionary<string, Dictionary<string, float>> ToDictionary()
+        {
+            var result = new Dictionary<string, Dictionary<string, float>>();
+            
+            if (Normal != null) result["Normal"] = Normal.ToDictionary();
+            if (Piercing != null) result["Piercing"] = Piercing.ToDictionary();
+            if (Magic != null) result["Magic"] = Magic.ToDictionary();
+            if (Siege != null) result["Siege"] = Siege.ToDictionary();
+            if (Hero != null) result["Hero"] = Hero.ToDictionary();
+            
+            return result;
+        }
+    }
+    
+    /// <summary>
+    /// 护甲类型倍率DTO
+    /// </summary>
+    [Serializable]
+    public class ArmorMultiplierDto
+    {
+        public float None = 1.0f;
+        public float Light = 1.0f;
+        public float Medium = 1.0f;
+        public float Heavy = 1.0f;
+        public float Fortified = 1.0f;
+        public float Divine = 1.0f;
+        
+        public Dictionary<string, float> ToDictionary()
+        {
+            return new Dictionary<string, float>
+            {
+                { "None", None },
+                { "Light", Light },
+                { "Medium", Medium },
+                { "Heavy", Heavy },
+                { "Fortified", Fortified },
+                { "Divine", Divine }
+            };
+        }
     }
 
     /// <summary>
