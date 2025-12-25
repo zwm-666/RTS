@@ -333,7 +333,10 @@ namespace RTS.Units
                 return;
             }
             
-            _currentHealth = _domainData.MaxHealth;
+            // 应用科技加成后的生命值
+            int maxHealth = GetBonusStat(RTS.Tech.StatType.MaxHealth, _domainData.MaxHealth);
+            _currentHealth = maxHealth;
+            
             _currentState = UnitState.Idle;
             _attackCooldown = 0f;
             _currentPath = null;
@@ -344,8 +347,62 @@ namespace RTS.Units
             _canSwim = false; // 可以从 JSON 扩展
             _canFly = false;
             
-            Debug.Log($"[Unit] {_domainData.DisplayName} 已初始化 - 生命:{_currentHealth}, 攻击:{_domainData.AttackDamage}");
+            Debug.Log($"[Unit] {_domainData.DisplayName} 已初始化 - 生命:{_currentHealth}, 攻击:{EffectiveAttackDamage}");
         }
+        
+        /// <summary>
+        /// 获取应用科技加成后的属性值
+        /// </summary>
+        private int GetBonusStat(RTS.Tech.StatType stat, int baseValue)
+        {
+            if (RTS.Tech.TechManager.Instance == null)
+            {
+                return baseValue;
+            }
+            
+            return RTS.Tech.TechManager.Instance.GetBonusValueInt(
+                _playerId, baseValue, stat, _domainData?.Category, _unitId);
+        }
+        
+        private float GetBonusStat(RTS.Tech.StatType stat, float baseValue)
+        {
+            if (RTS.Tech.TechManager.Instance == null)
+            {
+                return baseValue;
+            }
+            
+            return RTS.Tech.TechManager.Instance.GetBonusValue(
+                _playerId, baseValue, stat, _domainData?.Category, _unitId);
+        }
+        
+        #region 科技加成属性
+        
+        /// <summary>
+        /// 有效攻击力（含科技加成）
+        /// </summary>
+        public int EffectiveAttackDamage => GetBonusStat(RTS.Tech.StatType.AttackDamage, _domainData?.AttackDamage ?? 0);
+        
+        /// <summary>
+        /// 有效护甲（含科技加成）
+        /// </summary>
+        public int EffectiveArmor => GetBonusStat(RTS.Tech.StatType.Armor, _domainData?.Armor ?? 0);
+        
+        /// <summary>
+        /// 有效移动速度（含科技加成）
+        /// </summary>
+        public float EffectiveMoveSpeed => GetBonusStat(RTS.Tech.StatType.MoveSpeed, _domainData?.MoveSpeed ?? 5f);
+        
+        /// <summary>
+        /// 有效最大生命（含科技加成）
+        /// </summary>
+        public int EffectiveMaxHealth => GetBonusStat(RTS.Tech.StatType.MaxHealth, _domainData?.MaxHealth ?? 100);
+        
+        /// <summary>
+        /// 有效视野范围（含科技加成）
+        /// </summary>
+        public float EffectiveSightRange => GetBonusStat(RTS.Tech.StatType.SightRange, _domainData?.SightRange ?? 10f);
+        
+        #endregion
         
         /// <summary>
         /// 手动设置单位数据（兼容旧代码）

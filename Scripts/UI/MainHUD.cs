@@ -66,6 +66,10 @@ namespace RTS.UI
         [SerializeField] private Button _attackButton;
         [SerializeField] private Button _moveButton;
         
+        [Header("市场")]
+        [SerializeField] private Button _marketButton;
+        [SerializeField] private MarketUI _marketUI;
+        
         #endregion
 
         #region 配置
@@ -439,6 +443,12 @@ namespace RTS.UI
             {
                 _moveButton.onClick.AddListener(OnMoveClicked);
             }
+            
+            // 市场按钮
+            if (_marketButton != null)
+            {
+                _marketButton.onClick.AddListener(OnMarketClicked);
+            }
         }
         
         /// <summary>
@@ -590,6 +600,16 @@ namespace RTS.UI
             else
             {
                 Debug.LogWarning($"[MainHUD] 无法生产: {unitId} (可能资源不足或队列已满)");
+            }
+        }
+        
+        private void OnMarketClicked()
+        {
+            Debug.Log("[MainHUD] 打开市场");
+            
+            if (_marketUI != null)
+            {
+                _marketUI.ToggleMarket();
             }
         }
         
