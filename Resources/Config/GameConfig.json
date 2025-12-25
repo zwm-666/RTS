@@ -1,0 +1,251 @@
+{
+  "version": "1.0",
+  "lastUpdate": "2025-12-25",
+  
+  "attackTypes": {
+    "Normal": { "id": 0, "displayName": "普通", "description": "基础步兵攻击" },
+    "Piercing": { "id": 1, "displayName": "穿刺", "description": "远程射手/矛兵" },
+    "Magic": { "id": 2, "displayName": "魔法", "description": "法师/能量武器" },
+    "Siege": { "id": 3, "displayName": "攻城", "description": "火炮/重型机械" },
+    "Hero": { "id": 4, "displayName": "英雄", "description": "不受护甲影响" }
+  },
+  
+  "armorTypes": {
+    "None": { "id": 0, "displayName": "无护甲" },
+    "Light": { "id": 1, "displayName": "轻型" },
+    "Medium": { "id": 2, "displayName": "中型" },
+    "Heavy": { "id": 3, "displayName": "重型" },
+    "Fortified": { "id": 4, "displayName": "建筑" },
+    "Divine": { "id": 5, "displayName": "神圣" }
+  },
+  
+  "units": [
+    {
+      "unitId": "starfire_worker",
+      "displayName": "炽焰工人",
+      "faction": "Starfire",
+      "category": "Basic",
+      "description": "星火族的基础工人单位，可以采集资源和建造建筑",
+      
+      "stats": {
+        "maxHealth": 220,
+        "healthRegen": 0,
+        "attackDamage": 5,
+        "attackType": "Normal",
+        "attackSpeed": 1.0,
+        "attackRange": 1.5,
+        "armor": 0,
+        "armorType": "Light",
+        "moveSpeed": 5.0,
+        "sightRange": 10
+      },
+      
+      "cost": {
+        "wood": 0,
+        "food": 30,
+        "gold": 0
+      },
+      "buildTime": 15,
+      "populationCost": 1,
+      
+      "abilities": {
+        "canGather": true,
+        "canBuild": true,
+        "canHeal": false
+      },
+      
+      "skills": [],
+      "prefabPath": "Prefabs/Units/Starfire/Worker"
+    },
+    
+    {
+      "unitId": "starfire_berserker",
+      "displayName": "狂战士",
+      "faction": "Starfire",
+      "category": "Combat",
+      "description": "星火族的近战狂暴单位，血量越低攻击速度越快",
+      
+      "stats": {
+        "maxHealth": 450,
+        "healthRegen": 0,
+        "attackDamage": 18,
+        "attackType": "Normal",
+        "attackSpeed": 1.2,
+        "attackRange": 1.5,
+        "armor": 2,
+        "armorType": "Heavy",
+        "moveSpeed": 6.0,
+        "sightRange": 10
+      },
+      
+      "cost": {
+        "wood": 0,
+        "food": 120,
+        "gold": 0
+      },
+      "buildTime": 25,
+      "populationCost": 2,
+      
+      "abilities": {
+        "canGather": false,
+        "canBuild": false,
+        "canHeal": false
+      },
+      
+      "skills": [
+        {
+          "skillId": "berserk",
+          "displayName": "狂暴",
+          "description": "血量越低，攻击速度越快",
+          "passive": true
+        }
+      ],
+      "prefabPath": "Prefabs/Units/Starfire/Berserker"
+    },
+    
+    {
+      "unitId": "starfire_flamemage",
+      "displayName": "烈焰法师",
+      "faction": "Starfire",
+      "category": "Combat",
+      "description": "星火族的远程魔法单位，擅长高单体魔法伤害",
+      
+      "stats": {
+        "maxHealth": 240,
+        "healthRegen": 0,
+        "attackDamage": 25,
+        "attackType": "Magic",
+        "attackSpeed": 1.8,
+        "attackRange": 8.0,
+        "armor": 0,
+        "armorType": "Light",
+        "moveSpeed": 4.0,
+        "sightRange": 12
+      },
+      
+      "cost": {
+        "wood": 50,
+        "food": 80,
+        "gold": 60
+      },
+      "buildTime": 35,
+      "populationCost": 2,
+      
+      "abilities": {
+        "canGather": false,
+        "canBuild": false,
+        "canHeal": false
+      },
+      
+      "skills": [
+        {
+          "skillId": "fireball",
+          "displayName": "火球术",
+          "description": "发射火球造成高额单体魔法伤害",
+          "passive": false,
+          "cooldown": 8.0,
+          "manaCost": 50
+        }
+      ],
+      "prefabPath": "Prefabs/Units/Starfire/FlameMage"
+    }
+  ],
+  
+  "buildings": [
+    {
+      "buildingId": "main_base",
+      "displayName": "主基地",
+      "faction": "Common",
+      "tier": 1,
+      "description": "玩家的主基地，被摧毁则游戏失败",
+      
+      "stats": {
+        "maxHealth": 2500,
+        "armor": 10,
+        "armorType": "Fortified",
+        "sightRange": 15
+      },
+      
+      "size": {
+        "gridWidth": 4,
+        "gridHeight": 4
+      },
+      
+      "cost": {
+        "wood": 400,
+        "food": 0,
+        "gold": 0
+      },
+      "buildTime": 60,
+      
+      "production": {
+        "populationProvide": 10,
+        "isDropOffPoint": true,
+        "producibleUnits": ["starfire_worker", "shadow_worker", "iron_worker"],
+        "queueSize": 5
+      },
+      
+      "combat": {
+        "canAttack": false,
+        "attackDamage": 0,
+        "attackRange": 0,
+        "attackSpeed": 0
+      },
+      
+      "requirements": [],
+      "prefabPath": "Prefabs/Buildings/Common/MainBase"
+    },
+    
+    {
+      "buildingId": "barracks",
+      "displayName": "兵营",
+      "faction": "Common",
+      "tier": 1,
+      "description": "生产基础步兵和射手",
+      
+      "stats": {
+        "maxHealth": 1200,
+        "armor": 5,
+        "armorType": "Fortified",
+        "sightRange": 10
+      },
+      
+      "size": {
+        "gridWidth": 3,
+        "gridHeight": 3
+      },
+      
+      "cost": {
+        "wood": 150,
+        "food": 0,
+        "gold": 0
+      },
+      "buildTime": 30,
+      
+      "production": {
+        "populationProvide": 0,
+        "isDropOffPoint": false,
+        "producibleUnits": ["starfire_berserker", "starfire_flamemage"],
+        "queueSize": 5
+      },
+      
+      "combat": {
+        "canAttack": false,
+        "attackDamage": 0,
+        "attackRange": 0,
+        "attackSpeed": 0
+      },
+      
+      "requirements": ["main_base"],
+      "prefabPath": "Prefabs/Buildings/Common/Barracks"
+    }
+  ],
+  
+  "damageMultipliers": {
+    "Normal": { "Light": 1.0, "Medium": 1.2, "Heavy": 1.0, "Fortified": 0.7, "Divine": 0.5 },
+    "Piercing": { "Light": 1.5, "Medium": 1.0, "Heavy": 0.5, "Fortified": 0.5, "Divine": 0.5 },
+    "Magic": { "Light": 0.75, "Medium": 1.0, "Heavy": 1.4, "Fortified": 0.5, "Divine": 1.0 },
+    "Siege": { "Light": 0.5, "Medium": 0.5, "Heavy": 1.0, "Fortified": 2.0, "Divine": 0.5 },
+    "Hero": { "Light": 1.0, "Medium": 1.0, "Heavy": 1.0, "Fortified": 1.0, "Divine": 1.0 }
+  }
+}
