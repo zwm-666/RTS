@@ -152,6 +152,19 @@ namespace RTS.Core
                 }
             }
             
+            // 初始化伤害克制表
+            if (configData.damageMultipliers != null)
+            {
+                var multipliers = configData.damageMultipliers.ToDictionary();
+                RTS.Domain.DamageCalculator.Initialize(multipliers);
+                Log($"伤害克制表已加载: {multipliers.Count} 种攻击类型");
+            }
+            else
+            {
+                RTS.Domain.DamageCalculator.InitializeDefaults();
+                Log("使用默认伤害克制表");
+            }
+            
             Log($"配置层初始化完成: {_unitRepository.Count} 个单位, {_buildingRepository.Count} 个建筑");
             return true;
         }

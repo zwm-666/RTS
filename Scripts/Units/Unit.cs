@@ -104,6 +104,14 @@ namespace RTS.Units
         private bool _canSwim = false;
         private bool _canFly = false;
         
+        // 迷雾可见性
+        private Renderer[] _renderers;
+        private bool _isVisibleToLocalPlayer = true;
+        
+        // 隐身/侦测（基类默认值，子类可重写）
+        [Header("隐身/侦测")]
+        [SerializeField] protected bool _isDetector = false;
+        
         #endregion
 
         #region ISelectable 实现
@@ -154,6 +162,28 @@ namespace RTS.Units
         /// </summary>
         public bool IsRanged => _projectilePrefab != null;
         
+        /// <summary>
+        /// 是否处于隐身状态（虚属性，子类可重写）
+        /// </summary>
+        public virtual bool IsStealthed => false;
+        
+        /// <summary>
+        /// 是否为侦测单位（可看穿隐身）
+        /// </summary>
+        public bool IsDetector => _isDetector;
+        
+        /// <summary>
+        /// 检查目标是否可被攻击（考虑隐身状态）
+        /// </summary>
+        public bool CanBeTargetedBy(Unit attacker)
+        {
+            if (!IsAlive) return false;
+            if (!IsStealthed) return true;
+            
+            // 隐身单位只能被侦测单位攻击
+            return attacker != null && attacker.IsDetector;
+        }
+        
         #endregion
 
         #region Unity 生命周期
@@ -166,6 +196,9 @@ namespace RTS.Units
                 _selectionIndicator.SetActive(false);
             }
             
+            // 缓存渲染器（用于迷雾可见性）
+            _renderers = GetComponentsInChildren<Renderer>();
+            
             // 如果有预设的 unitId，尝试从 Repository 获取数据
             if (!string.IsNullOrEmpty(_unitId) && _domainData == null)
             {
@@ -176,6 +209,9 @@ namespace RTS.Units
         protected virtual void Update()
         {
             if (!IsAlive) return;
+            
+            // 迷雾可见性检查
+            UpdateFogVisibility();
             
             // 攻击冷却
             if (_attackCooldown > 0)
@@ -191,6 +227,54 @@ namespace RTS.Units
             
             // 状态机更新
             UpdateState();
+        }
+        
+        /// <summary>
+        /// 更新迷雾可见性（敌方单位在不可见区域时隐藏）
+        /// </summary>
+        private void UpdateFogVisibility()
+        {
+            // 仅处理非本地玩家的单位
+            if (RTS.Map.FogOfWarManager.Instance == null) return;
+            if (_playerId == RTS.Map.FogOfWarManager.Instance.LocalPlayerId) return;
+            
+            bool shouldBeVisible = RTS.Map.FogOfWarManager.Instance.IsVisibleAtWorld(transform.position);
+            
+            if (shouldBeVisible != _isVisibleToLocalPlayer)
+            {
+                _isVisibleToLocalPlayer = shouldBeVisible;
+                SetRenderersVisible(shouldBeVisible);
+            }
+        }
+        
+        /// <summary>
+        /// 更新隐身状态（虚方法，子类可重写）
+        /// </summary>
+        protected virtual void UpdateStealthState()
+        {
+            // 基类不实现隐身逻辑，由 StealthUnit 等子类重写
+        }
+        
+        /// <summary>
+        /// 设置渲染器可见性
+        /// </summary>
+        private void SetRenderersVisible(bool visible)
+        {
+            if (_renderers == null) return;
+            
+            foreach (var renderer in _renderers)
+            {
+                if (renderer != null)
+                {
+                    renderer.enabled = visible;
+                }
+            }
+            
+            // 也隐藏/显示选择指示器
+            if (_selectionIndicator != null && !_isSelected)
+            {
+                _selectionIndicator.SetActive(visible && _isSelected);
+            }
         }
         
         #endregion
@@ -467,6 +551,13 @@ namespace RTS.Units
         {
             if (!IsAlive || target == null || !target.IsAlive || _domainData == null)
             {
+                return false;
+            }
+            
+            // 检查目标是否可被攻击（隐身校验）
+            if (!target.CanBeTargetedBy(this))
+            {
+                Debug.Log($"[Unit] {DisplayName} 无法攻击隐身目标 {target.DisplayName}");
                 return false;
             }
             

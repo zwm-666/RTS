@@ -59,6 +59,7 @@ namespace RTS.Units
         
         public float Speed => _speed;
         public Unit Target => _target;
+        public Unit Owner => _owner;
         public int Damage => _damage;
         public AttackType AttackType => _attackType;
         
@@ -248,9 +249,9 @@ namespace RTS.Units
         #region 命中处理
         
         /// <summary>
-        /// 命中目标
+        /// 命中目标（虚方法，子类可重写）
         /// </summary>
-        private void OnHitTarget()
+        protected virtual void OnHitTarget()
         {
             if (_hasHit) return;
             _hasHit = true;
@@ -289,9 +290,9 @@ namespace RTS.Units
         }
         
         /// <summary>
-        /// 销毁自己
+        /// 销毁自己（虚方法，子类可重写）
         /// </summary>
-        private void DestroySelf()
+        protected virtual void DestroySelf()
         {
             // 如果有拖尾，先断开再销毁
             if (_trail != null)
