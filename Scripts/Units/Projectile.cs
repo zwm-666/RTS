@@ -5,6 +5,7 @@
 
 using UnityEngine;
 using RTS.Domain.Enums;
+using RTS.Core;
 
 namespace RTS.Units
 {
@@ -22,7 +23,7 @@ namespace RTS.Units
     /// 投射物脚本
     /// 挂载位置：投射物预制体上
     /// </summary>
-    public class Projectile : MonoBehaviour
+    public class Projectile : MonoBehaviour, IPoolable
     {
         #region 序列化字段
         
@@ -52,8 +53,50 @@ namespace RTS.Units
         private Vector3 _lastTargetPosition;
         private float _lifetime;
         private bool _hasHit = false;
+        private GameObject _prefabReference; // 用于对象池回收
         
         #endregion
+        
+        #region IPoolable 实现
+        
+        /// <summary>
+        /// 从对象池取出时调用
+        /// </summary>
+        public virtual void OnSpawn()
+        {
+            // 重置状态
+            _target = null;
+            _owner = null;
+            _damage = 0;
+            _lifetime = 0f;
+            _hasHit = false;
+            _lastTargetPosition = Vector3.zero;
+            
+            // 重新启用拖尾
+            if (_trail != null)
+            {
+                _trail.Clear();
+            }
+        }
+        
+        /// <summary>
+        /// 放回对象池时调用
+        /// </summary>
+        public virtual void OnDespawn()
+        {
+            // 清理状态
+            _target = null;
+            _owner = null;
+            _hasHit = true; // 防止再次处理
+        }
+        
+        /// <summary>
+        /// 设置预制体引用（用于对象池回收）
+        /// </summary>
+        public void SetPrefabReference(GameObject prefab)
+        {
+            _prefabReference = prefab;
+        }
 
         #region 属性访问器
         
@@ -294,14 +337,22 @@ namespace RTS.Units
         /// </summary>
         protected virtual void DestroySelf()
         {
-            // 如果有拖尾，先断开再销毁
+            // 如果有拖尾，清除但不分离
             if (_trail != null)
             {
-                _trail.transform.SetParent(null);
-                Destroy(_trail.gameObject, _trail.time);
+                _trail.Clear();
             }
             
-            Destroy(gameObject);
+            // 使用对象池回收
+            if (ObjectPoolManager.Instance != null)
+            {
+                ObjectPoolManager.Instance.Despawn(gameObject);
+            }
+            else
+            {
+                // 回退到直接销毁
+                Destroy(gameObject);
+            }
         }
         
         #endregion

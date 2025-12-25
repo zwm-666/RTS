@@ -671,8 +671,17 @@ namespace RTS.Units
             Vector3 spawnPos = _firePoint != null ? _firePoint.position : transform.position + Vector3.up * 1f;
             Quaternion spawnRot = Quaternion.LookRotation((target.transform.position - spawnPos).normalized);
             
-            // 实例化投射物
-            GameObject projObj = Instantiate(_projectilePrefab, spawnPos, spawnRot);
+            // 使用对象池生成投射物
+            GameObject projObj;
+            if (RTS.Core.ObjectPoolManager.Instance != null)
+            {
+                projObj = RTS.Core.ObjectPoolManager.Instance.Spawn(_projectilePrefab, spawnPos, spawnRot);
+            }
+            else
+            {
+                // 回退到直接实例化
+                projObj = Instantiate(_projectilePrefab, spawnPos, spawnRot);
+            }
             
             // 初始化投射物
             Projectile projectile = projObj.GetComponent<Projectile>();

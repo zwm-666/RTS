@@ -258,7 +258,16 @@ namespace RTS.Managers
         public void ExitToMainMenu()
         {
             Time.timeScale = 1f;
-            SceneManager.LoadScene("MainMenu"); // 确保有这个场景
+            
+            // 优先使用SceneController
+            if (SceneController.Instance != null)
+            {
+                SceneController.Instance.LoadMainMenu();
+            }
+            else
+            {
+                SceneManager.LoadScene("MainMenuScene");
+            }
         }
         
         /// <summary>

@@ -145,7 +145,21 @@ namespace RTS.UI
         
         private void OnMainMenuClicked()
         {
-            if (GameManager.Instance != null)
+            // 恢复时间
+            Time.timeScale = 1f;
+            
+            // 清理对象池
+            if (RTS.Core.ObjectPoolManager.Instance != null)
+            {
+                RTS.Core.ObjectPoolManager.Instance.ClearAllPools();
+            }
+            
+            // 使用SceneController切换场景
+            if (RTS.Core.SceneController.Instance != null)
+            {
+                RTS.Core.SceneController.Instance.LoadMainMenu();
+            }
+            else if (GameManager.Instance != null)
             {
                 GameManager.Instance.ExitToMainMenu();
             }

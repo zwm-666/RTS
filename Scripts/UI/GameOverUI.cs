@@ -6,6 +6,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 using RTS.Managers;
+using RTS.Core;
 
 namespace RTS.UI
 {
@@ -25,6 +26,12 @@ namespace RTS.UI
         [SerializeField] private Button _restartButton;
         [SerializeField] private Button _mainMenuButton;
         [SerializeField] private Button _quitButton;
+        
+        [Header("统计数据显示")]
+        [SerializeField] private Text _unitsCreatedText;
+        [SerializeField] private Text _enemiesKilledText;
+        [SerializeField] private Text _resourcesGatheredText;
+        [SerializeField] private Text _matchDurationText;
         
         [Header("显示文本")]
         [SerializeField] private string _victoryTitle = "胜 利 ！";
@@ -134,6 +141,9 @@ namespace RTS.UI
                 _gameTimeText.text = $"游戏时间: {GameManager.Instance.GetFormattedGameTime()}";
             }
             
+            // 显示统计数据
+            DisplayStats();
+            
             // 开始淡入
             _canvasGroup.alpha = 0f;
             _fadeTimer = 0f;
@@ -143,6 +153,36 @@ namespace RTS.UI
             Time.timeScale = 0f;
             
             Debug.Log($"[GameOverUI] 显示游戏结束UI - {(isVictory ? "胜利" : "失败")}");
+        }
+        
+        /// <summary>
+        /// 显示统计数据
+        /// </summary>
+        private void DisplayStats()
+        {
+            GameStats stats = StatsManager.Instance?.CurrentStats;
+            
+            if (stats == null) return;
+            
+            if (_unitsCreatedText != null)
+            {
+                _unitsCreatedText.text = $"单位创建: {stats.UnitsCreated}";
+            }
+            
+            if (_enemiesKilledText != null)
+            {
+                _enemiesKilledText.text = $"击杀敌人: {stats.EnemiesKilled}";
+            }
+            
+            if (_resourcesGatheredText != null)
+            {
+                _resourcesGatheredText.text = $"资源采集: {stats.ResourcesGathered}";
+            }
+            
+            if (_matchDurationText != null)
+            {
+                _matchDurationText.text = $"比赛时长: {StatsManager.FormatDuration(stats.MatchDuration)}";
+            }
         }
         
         /// <summary>
@@ -174,7 +214,19 @@ namespace RTS.UI
         private void OnMainMenuClicked()
         {
             Debug.Log("[GameOverUI] 点击返回主菜单");
-            if (GameManager.Instance != null)
+            Time.timeScale = 1f;
+            
+            // 清理对象池
+            if (ObjectPoolManager.Instance != null)
+            {
+                ObjectPoolManager.Instance.ClearAllPools();
+            }
+            
+            if (SceneController.Instance != null)
+            {
+                SceneController.Instance.LoadMainMenu();
+            }
+            else if (GameManager.Instance != null)
             {
                 GameManager.Instance.ExitToMainMenu();
             }
