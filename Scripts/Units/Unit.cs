@@ -1,14 +1,16 @@
 // ============================================================
 // Unit.cs
-// 单位基类脚本 - 实现 ICommandable 接口
+// 单位基类脚本 - 使用 Domain 层数据
 // ============================================================
 
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-using RTS.Data;
+using RTS.Domain.Entities;
+using RTS.Domain.Enums;
 using RTS.Map;
 using RTS.Interfaces;
+using RTS.Presentation;
 
 namespace RTS.Units
 {
@@ -27,8 +29,9 @@ namespace RTS.Units
     /// <summary>
     /// 单位基类 - 挂载在单位预制体上
     /// 实现 ICommandable 接口，可被选择和命令
+    /// 实现 IEntityInitializable 接口，由 EntitySpawner 初始化
     /// </summary>
-    public class Unit : MonoBehaviour, ICommandable
+    public class Unit : MonoBehaviour, ICommandable, IEntityInitializable
     {
         #region 事件
         
@@ -51,8 +54,8 @@ namespace RTS.Units
 
         #region 序列化字段
         
-        [Header("单位数据")]
-        [SerializeField] private UnitData _unitData;
+        [Header("单位ID（用于从Repository获取数据）")]
+        [SerializeField] private string _unitId;
         
         [Header("所属玩家")]
         [SerializeField] private int _playerId = 0;
@@ -66,6 +69,12 @@ namespace RTS.Units
         
         [Header("选择指示器（可选）")]
         [SerializeField] private GameObject _selectionIndicator;
+        
+        #endregion
+
+        #region 领域数据（由 EntitySpawner 或 Repository 注入）
+        
+        private UnitData _domainData;
         
         #endregion
 
@@ -119,16 +128,20 @@ namespace RTS.Units
 
         #region 属性访问器
         
-        public UnitData UnitData => _unitData;
+        public string UnitId => _unitId;
+        public UnitData DomainData => _domainData;
         public UnitState CurrentState => _currentState;
         public int CurrentHealth => _currentHealth;
-        public int MaxHealth => _unitData != null ? _unitData.maxHealth : 0;
-        public ArmorType ArmorType => _unitData != null ? _unitData.armorType : ArmorType.None;
-        public int Armor => _unitData != null ? _unitData.armor : 0;
+        public int MaxHealth => _domainData?.MaxHealth ?? 0;
+        public ArmorType ArmorType => _domainData?.ArmorType ?? ArmorType.None;
+        public int Armor => _domainData?.Armor ?? 0;
         public bool IsMoving => _currentState == UnitState.Moving && _currentPath != null;
         public bool IsSelected => _isSelected;
         public bool CanSwim => _canSwim;
         public bool CanFly => _canFly;
+        
+        // 兼容旧代码的属性名
+        public string DisplayName => _domainData?.DisplayName ?? "Unknown";
         
         #endregion
 
@@ -136,12 +149,16 @@ namespace RTS.Units
         
         protected virtual void Awake()
         {
-            InitializeFromData();
-            
             // 初始隐藏选择指示器
             if (_selectionIndicator != null)
             {
                 _selectionIndicator.SetActive(false);
+            }
+            
+            // 如果有预设的 unitId，尝试从 Repository 获取数据
+            if (!string.IsNullOrEmpty(_unitId) && _domainData == null)
+            {
+                TryLoadFromRepository();
             }
         }
         
@@ -156,9 +173,9 @@ namespace RTS.Units
             }
             
             // 生命恢复
-            if (_unitData != null && _unitData.healthRegen > 0)
+            if (_domainData != null && _domainData.HealthRegen > 0)
             {
-                Heal(Mathf.RoundToInt(_unitData.healthRegen * Time.deltaTime));
+                Heal(Mathf.RoundToInt(_domainData.HealthRegen * Time.deltaTime));
             }
             
             // 状态机更新
@@ -167,31 +184,83 @@ namespace RTS.Units
         
         #endregion
 
+        #region IEntityInitializable 实现
+        
+        /// <summary>
+        /// 由 EntitySpawner 调用，注入领域数据
+        /// </summary>
+        public void InitializeWithData(object data, int playerId)
+        {
+            if (data is UnitData unitData)
+            {
+                _domainData = unitData;
+                _unitId = unitData.UnitId;
+                _playerId = playerId;
+                InitializeFromDomainData();
+            }
+            else
+            {
+                Debug.LogError($"[Unit] InitializeWithData 收到错误类型: {data?.GetType().Name}");
+            }
+        }
+        
+        #endregion
+
         #region 初始化
         
-        public void InitializeFromData()
+        /// <summary>
+        /// 尝试从 Repository 加载数据
+        /// </summary>
+        private void TryLoadFromRepository()
         {
-            if (_unitData == null)
+            if (RTS.Core.ServiceLocator.TryGet<RTS.Domain.Repositories.IUnitRepository>(out var repo))
             {
-                Debug.LogError($"[Unit] {gameObject.name} 缺少 UnitData！");
+                _domainData = repo.GetById(_unitId);
+                if (_domainData != null)
+                {
+                    InitializeFromDomainData();
+                }
+                else
+                {
+                    Debug.LogWarning($"[Unit] 从 Repository 找不到单位: {_unitId}");
+                }
+            }
+        }
+        
+        /// <summary>
+        /// 从领域数据初始化
+        /// </summary>
+        private void InitializeFromDomainData()
+        {
+            if (_domainData == null)
+            {
+                Debug.LogError($"[Unit] {gameObject.name} 缺少领域数据！");
                 return;
             }
             
-            _currentHealth = _unitData.maxHealth;
+            _currentHealth = _domainData.MaxHealth;
             _currentState = UnitState.Idle;
             _attackCooldown = 0f;
             _currentPath = null;
             _currentPathIndex = 0;
             _hasDestination = false;
             
-            Debug.Log($"[Unit] {_unitData.displayName} 已初始化 - 生命:{_currentHealth}, 攻击:{_unitData.attackDamage}");
+            // 设置能力标记
+            _canSwim = false; // 可以从 JSON 扩展
+            _canFly = false;
+            
+            Debug.Log($"[Unit] {_domainData.DisplayName} 已初始化 - 生命:{_currentHealth}, 攻击:{_domainData.AttackDamage}");
         }
         
+        /// <summary>
+        /// 手动设置单位数据（兼容旧代码）
+        /// </summary>
         public void SetUnitData(UnitData data, int playerId)
         {
-            _unitData = data;
+            _domainData = data;
+            _unitId = data?.UnitId;
             _playerId = playerId;
-            InitializeFromData();
+            InitializeFromDomainData();
         }
         
         #endregion
@@ -203,7 +272,7 @@ namespace RTS.Units
         /// </summary>
         public bool MoveTo(Vector3 destination)
         {
-            if (!IsAlive || _unitData == null) return false;
+            if (!IsAlive || _domainData == null) return false;
             
             // 清除当前攻击目标
             _currentTarget = null;
@@ -227,7 +296,7 @@ namespace RTS.Units
             
             if (path == null || path.Count == 0)
             {
-                Debug.LogWarning($"[Unit] {_unitData.displayName} 无法到达目标位置！");
+                Debug.LogWarning($"[Unit] {_domainData.DisplayName} 无法到达目标位置！");
                 return false;
             }
             
@@ -237,7 +306,7 @@ namespace RTS.Units
             _hasDestination = true;
             _currentState = UnitState.Moving;
             
-            Debug.Log($"[Unit] {_unitData.displayName} 开始移动，路径点数: {path.Count}");
+            Debug.Log($"[Unit] {_domainData.DisplayName} 开始移动，路径点数: {path.Count}");
             return true;
         }
         
@@ -314,7 +383,7 @@ namespace RTS.Units
             }
             
             direction.Normalize();
-            Vector3 movement = direction * _unitData.moveSpeed * Time.deltaTime;
+            Vector3 movement = direction * _domainData.MoveSpeed * Time.deltaTime;
             transform.position += movement;
             
             if (direction != Vector3.zero)
@@ -333,7 +402,7 @@ namespace RTS.Units
             _hasDestination = false;
             _currentState = UnitState.Idle;
             
-            Debug.Log($"[Unit] {_unitData?.displayName} 到达目的地");
+            Debug.Log($"[Unit] {_domainData?.DisplayName} 到达目的地");
             OnReachedDestination?.Invoke(this);
         }
         
@@ -348,9 +417,9 @@ namespace RTS.Units
             int actualDamage = CalculateReceivedDamage(damage, attackType);
             _currentHealth = Mathf.Max(0, _currentHealth - actualDamage);
             
-            Debug.Log($"[Unit] {_unitData.displayName} 受到 {actualDamage} 点伤害，剩余生命: {_currentHealth}/{_unitData.maxHealth}");
+            Debug.Log($"[Unit] {_domainData?.DisplayName} 受到 {actualDamage} 点伤害，剩余生命: {_currentHealth}/{_domainData?.MaxHealth}");
             
-            OnHealthChanged?.Invoke(_currentHealth, _unitData.maxHealth);
+            OnHealthChanged?.Invoke(_currentHealth, _domainData?.MaxHealth ?? 0);
             
             if (_currentHealth <= 0)
             {
@@ -367,35 +436,15 @@ namespace RTS.Units
         
         private int CalculateReceivedDamage(int rawDamage, AttackType attackType)
         {
-            float multiplier = GetDamageMultiplier(attackType);
+            float multiplier = UnitData.GetDamageMultiplier(attackType, ArmorType);
             int modifiedDamage = Mathf.RoundToInt(rawDamage * multiplier);
-            int finalDamage = Mathf.Max(1, modifiedDamage - (_unitData?.armor ?? 0));
+            int finalDamage = Mathf.Max(1, modifiedDamage - Armor);
             return finalDamage;
-        }
-        
-        private float GetDamageMultiplier(AttackType attackType)
-        {
-            if (_unitData == null) return 1f;
-            
-            switch (attackType)
-            {
-                case AttackType.Pierce:
-                    if (_unitData.armorType == ArmorType.Light) return 1.5f;
-                    if (_unitData.armorType == ArmorType.Heavy) return 0.5f;
-                    break;
-                case AttackType.Siege:
-                    if (_unitData.armorType == ArmorType.Fortified) return 2.0f;
-                    if (_unitData.armorType == ArmorType.Light) return 0.5f;
-                    break;
-                case AttackType.Magic:
-                    return 1.0f;
-            }
-            return 1.0f;
         }
         
         public bool Attack(Unit target)
         {
-            if (!IsAlive || target == null || !target.IsAlive || _unitData == null)
+            if (!IsAlive || target == null || !target.IsAlive || _domainData == null)
             {
                 return false;
             }
@@ -406,7 +455,7 @@ namespace RTS.Units
             }
             
             float distance = Vector3.Distance(transform.position, target.transform.position);
-            if (distance > _unitData.attackRange)
+            if (distance > _domainData.AttackRange)
             {
                 _currentTarget = target;
                 MoveTo(target.transform.position);
@@ -414,12 +463,12 @@ namespace RTS.Units
             }
             
             _currentState = UnitState.Attacking;
-            _attackCooldown = _unitData.attackSpeed;
+            _attackCooldown = _domainData.AttackSpeed;
             
-            int damage = _unitData.CalculateDamage(target.ArmorType, target.Armor);
-            target.TakeDamage(damage, _unitData.attackType);
+            int damage = _domainData.CalculateDamage(target.ArmorType, target.Armor);
+            target.TakeDamage(damage, _domainData.AttackType);
             
-            Debug.Log($"[Unit] {_unitData.displayName} 攻击 {target.UnitData.displayName}，造成 {damage} 点伤害");
+            Debug.Log($"[Unit] {_domainData.DisplayName} 攻击 {target.DisplayName}，造成 {damage} 点伤害");
             return true;
         }
         
@@ -434,14 +483,14 @@ namespace RTS.Units
         
         public void Heal(int amount)
         {
-            if (!IsAlive || _unitData == null) return;
+            if (!IsAlive || _domainData == null) return;
             
             int oldHealth = _currentHealth;
-            _currentHealth = Mathf.Min(_unitData.maxHealth, _currentHealth + amount);
+            _currentHealth = Mathf.Min(_domainData.MaxHealth, _currentHealth + amount);
             
             if (_currentHealth != oldHealth)
             {
-                OnHealthChanged?.Invoke(_currentHealth, _unitData.maxHealth);
+                OnHealthChanged?.Invoke(_currentHealth, _domainData.MaxHealth);
             }
         }
         
@@ -450,7 +499,7 @@ namespace RTS.Units
             _currentState = UnitState.Dead;
             StopMoving();
             
-            Debug.Log($"[Unit] {_unitData.displayName} 已死亡！");
+            Debug.Log($"[Unit] {_domainData?.DisplayName} 已死亡！");
             OnDeath?.Invoke(this);
             
             Destroy(gameObject, 2f);
@@ -503,7 +552,7 @@ namespace RTS.Units
             }
             
             float distance = Vector3.Distance(transform.position, _currentTarget.transform.position);
-            if (distance > _unitData.attackRange * 1.5f)
+            if (distance > _domainData.AttackRange * 1.5f)
             {
                 MoveTo(_currentTarget.transform.position);
             }
@@ -515,13 +564,13 @@ namespace RTS.Units
         
         private void OnDrawGizmosSelected()
         {
-            if (_unitData == null) return;
+            if (_domainData == null) return;
             
             Gizmos.color = Color.red;
-            Gizmos.DrawWireSphere(transform.position, _unitData.attackRange);
+            Gizmos.DrawWireSphere(transform.position, _domainData.AttackRange);
             
             Gizmos.color = Color.yellow;
-            Gizmos.DrawWireSphere(transform.position, _unitData.sightRange);
+            Gizmos.DrawWireSphere(transform.position, _domainData.SightRange);
             
             if (_currentPath != null && _currentPath.Count > 0)
             {

@@ -1,77 +1,48 @@
 // ============================================================
-// ConfigData.cs
-// JSON 配置数据结构定义（用于反序列化）
+// ConfigData.cs - JSON反序列化DTO结构
 // ============================================================
 
 using System;
 using System.Collections.Generic;
-using UnityEngine;
 
 namespace RTS.Config
 {
     /// <summary>
-    /// 游戏总配置数据
+    /// 游戏配置DTO（根对象）
     /// </summary>
     [Serializable]
-    public class GameConfigData
+    public class GameConfigDto
     {
         public string version;
         public string lastUpdate;
-        
-        public Dictionary<string, AttackTypeInfo> attackTypes;
-        public Dictionary<string, ArmorTypeInfo> armorTypes;
-        public List<UnitConfigData> units;
-        public List<BuildingConfigData> buildings;
-        public Dictionary<string, Dictionary<string, float>> damageMultipliers;
+        public List<UnitDto> units;
+        public List<BuildingDto> buildings;
     }
 
     /// <summary>
-    /// 攻击类型信息
+    /// 单位配置DTO
     /// </summary>
     [Serializable]
-    public class AttackTypeInfo
-    {
-        public int id;
-        public string displayName;
-        public string description;
-    }
-
-    /// <summary>
-    /// 护甲类型信息
-    /// </summary>
-    [Serializable]
-    public class ArmorTypeInfo
-    {
-        public int id;
-        public string displayName;
-    }
-
-    /// <summary>
-    /// 单位配置数据
-    /// </summary>
-    [Serializable]
-    public class UnitConfigData
+    public class UnitDto
     {
         public string unitId;
         public string displayName;
         public string faction;
         public string category;
         public string description;
-        
-        public UnitStats stats;
-        public ResourceCost cost;
+        public UnitStatsDto stats;
+        public ResourceCostDto cost;
         public float buildTime;
         public int populationCost;
-        public UnitAbilities abilities;
-        public List<SkillData> skills;
-        public string prefabPath;
+        public UnitAbilitiesDto abilities;
+        public List<SkillDto> skills;
     }
 
     /// <summary>
-    /// 单位属性数据
+    /// 单位属性DTO
     /// </summary>
     [Serializable]
-    public class UnitStats
+    public class UnitStatsDto
     {
         public int maxHealth;
         public float healthRegen;
@@ -86,10 +57,10 @@ namespace RTS.Config
     }
 
     /// <summary>
-    /// 单位能力
+    /// 单位能力DTO
     /// </summary>
     [Serializable]
-    public class UnitAbilities
+    public class UnitAbilitiesDto
     {
         public bool canGather;
         public bool canBuild;
@@ -97,10 +68,10 @@ namespace RTS.Config
     }
 
     /// <summary>
-    /// 技能数据
+    /// 技能DTO
     /// </summary>
     [Serializable]
-    public class SkillData
+    public class SkillDto
     {
         public string skillId;
         public string displayName;
@@ -111,56 +82,30 @@ namespace RTS.Config
     }
 
     /// <summary>
-    /// 资源消耗
+    /// 建筑配置DTO
     /// </summary>
     [Serializable]
-    public class ResourceCost
-    {
-        public int wood;
-        public int food;
-        public int gold;
-        
-        /// <summary>
-        /// 转换为字典格式
-        /// </summary>
-        public Dictionary<RTS.Core.ResourceType, int> ToDictionary()
-        {
-            return new Dictionary<RTS.Core.ResourceType, int>
-            {
-                { RTS.Core.ResourceType.Wood, wood },
-                { RTS.Core.ResourceType.Food, food },
-                { RTS.Core.ResourceType.Gold, gold }
-            };
-        }
-    }
-
-    /// <summary>
-    /// 建筑配置数据
-    /// </summary>
-    [Serializable]
-    public class BuildingConfigData
+    public class BuildingDto
     {
         public string buildingId;
         public string displayName;
         public string faction;
         public int tier;
         public string description;
-        
-        public BuildingStats stats;
-        public BuildingSize size;
-        public ResourceCost cost;
+        public BuildingStatsDto stats;
+        public BuildingSizeDto size;
+        public ResourceCostDto cost;
         public float buildTime;
-        public BuildingProduction production;
-        public BuildingCombat combat;
+        public BuildingProductionDto production;
+        public BuildingCombatDto combat;
         public List<string> requirements;
-        public string prefabPath;
     }
 
     /// <summary>
-    /// 建筑属性
+    /// 建筑属性DTO
     /// </summary>
     [Serializable]
-    public class BuildingStats
+    public class BuildingStatsDto
     {
         public int maxHealth;
         public int armor;
@@ -169,20 +114,20 @@ namespace RTS.Config
     }
 
     /// <summary>
-    /// 建筑尺寸
+    /// 建筑尺寸DTO
     /// </summary>
     [Serializable]
-    public class BuildingSize
+    public class BuildingSizeDto
     {
         public int gridWidth;
         public int gridHeight;
     }
 
     /// <summary>
-    /// 建筑生产能力
+    /// 建筑生产能力DTO
     /// </summary>
     [Serializable]
-    public class BuildingProduction
+    public class BuildingProductionDto
     {
         public int populationProvide;
         public bool isDropOffPoint;
@@ -191,14 +136,25 @@ namespace RTS.Config
     }
 
     /// <summary>
-    /// 建筑战斗属性
+    /// 建筑战斗属性DTO
     /// </summary>
     [Serializable]
-    public class BuildingCombat
+    public class BuildingCombatDto
     {
         public bool canAttack;
         public int attackDamage;
         public float attackRange;
         public float attackSpeed;
+    }
+
+    /// <summary>
+    /// 资源消耗DTO
+    /// </summary>
+    [Serializable]
+    public class ResourceCostDto
+    {
+        public int wood;
+        public int food;
+        public int gold;
     }
 }
